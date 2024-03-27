@@ -8,10 +8,14 @@ export const signup = async (req, res, next) => {
   const newUser = new User({ username, email, password: hashedPassword });
   try {
     await newUser.save();
-    res.status(201).json({ message: "User created successfully!" });
+    res
+      .status(201)
+      .json({
+        success: true,
+        statusCode: 201,
+        message: "User created successfully!",
+      });
   } catch (error) {
-    next(
-      errorHandler(300, "Username exists! Please provide a unique username")
-    );
+    next(errorHandler(409, "Duplicate username or email!"));
   }
 };
