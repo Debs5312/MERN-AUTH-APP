@@ -42,7 +42,12 @@ export const signIn = async (req, res, next) => {
     res
       .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
       .status(200)
-      .json(rest);
+      .json({
+        success: true,
+        statusCode: 200,
+        message: "User logged in successfully!",
+        data: rest,
+      });
   } catch (error) {
     next(errorHandler(500, "Check DB connection"));
   }
