@@ -1,20 +1,36 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  signInStart,
+  signInSuccess,
+  signInFaliure,
+} from "../reduxStore/auth/authSlice";
+import { useSelector, useDispatch } from "react-redux";
+
+import OAuthSignUp from "../components/OAuthSignUp";
 
 const SignUp = () => {
   const [data, setData] = useState({});
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { error, loading } = useSelector((state) => state.auth);
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setData({ ...data, [e.target.id]: e.target.value });
   };
 
+  const handleSetMessage = (message) => {
+    setMessage(message);
+  };
+
+  const displayMessage = (message, cssClass) => {
+    return <p className={cssClass}>{message}</p>;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    dispatch(signInStart());
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: {
@@ -23,21 +39,16 @@ const SignUp = () => {
       body: JSON.stringify(data),
     });
     const jsonResponse = await res.json();
-    setLoading(false);
 
     if (!jsonResponse.success) {
-      setError(true);
-      setMessage(jsonResponse.message);
+      dispatch(signInFaliure());
+      handleSetMessage(jsonResponse.message);
       return;
     } else {
-      setError(false);
-      setMessage(jsonResponse.message);
+      dispatch(signInSuccess(jsonResponse));
+      handleSetMessage(jsonResponse.message);
       navigate("/sign-in");
     }
-  };
-
-  const displayErrorMessage = (message, cssClass) => {
-    return <p className={cssClass}>{message}</p>;
   };
 
   return (
@@ -71,6 +82,7 @@ const SignUp = () => {
         >
           {loading ? "...loading" : "Sign up"}
         </button>
+        <OAuthSignUp onSetMessage={handleSetMessage} />
       </form>
       <div className="flex gap-2 pt-2">
         <p>Have an account?</p>
@@ -79,8 +91,8 @@ const SignUp = () => {
         </Link>
       </div>
       {error
-        ? displayErrorMessage(message, "text-red-700 mt-5 p-1")
-        : displayErrorMessage(message, "text-green-700 mt-5 p-1")}
+        ? displayMessage(message, "text-red-700 mt-5 p-1")
+        : displayMessage(message, "text-green-700 mt-5 p-1")}
     </div>
   );
 };

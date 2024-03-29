@@ -6,6 +6,7 @@ import {
   signInFaliure,
 } from "../reduxStore/auth/authSlice";
 import { useSelector, useDispatch } from "react-redux";
+import OAuthSignIn from "../components/OAuthSignIn";
 
 const SignIn = () => {
   const [data, setData] = useState({});
@@ -16,6 +17,10 @@ const SignIn = () => {
 
   const handleChange = (e) => {
     setData({ ...data, [e.target.id]: e.target.value });
+  };
+
+  const handleSetMessage = (message) => {
+    setMessage(message);
   };
 
   const handleSubmit = async (e) => {
@@ -32,10 +37,10 @@ const SignIn = () => {
 
     if (!jsonResponse.success) {
       dispatch(signInFaliure());
-      setMessage(jsonResponse.message);
+      handleSetMessage(jsonResponse.message);
       return;
     } else {
-      dispatch(signInSuccess(jsonResponse));
+      dispatch(signInSuccess(jsonResponse.data));
       navigate("/");
     }
   };
@@ -64,13 +69,14 @@ const SignIn = () => {
         />
         <button
           disabled={loading}
-          className="bg-slate-700 text-white p-3 rounded-lg uppercase hover:opacity-95 disabled:opacity-70"
+          className="bg-slate-700 text-white p-3 rounded-lg uppercase hover:opacity-80 disabled:opacity-60"
         >
           {loading ? "...loading" : "Sign in"}
         </button>
+        <OAuthSignIn onSetMessage={handleSetMessage} />
       </form>
       <div className="flex gap-2 pt-2">
-        <p>New to this site?</p>
+        <p>Dont have an account?</p>
         <Link to="/sign-up">
           <span className="text-blue-500">Sign Up</span>
         </Link>
