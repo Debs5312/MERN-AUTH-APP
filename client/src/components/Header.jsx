@@ -3,9 +3,17 @@ import { useSelector } from "react-redux";
 
 const Header = () => {
   const { currentUser } = useSelector((state) => state.auth);
-  const signin = (
-    <Link to="/sign-in">
-      <li>Sign-In</li>
+  const signinOrProfile = (
+    <Link to="/profile">
+      {currentUser ? (
+        <img
+          src={currentUser.profilePicture}
+          alt="profile"
+          className="h-7 w-7 rounded-full object-cover"
+        />
+      ) : (
+        <li>Sign-In</li>
+      )}
     </Link>
   );
   return (
@@ -21,15 +29,7 @@ const Header = () => {
           <Link to="/about">
             <li>About</li>
           </Link>
-          {currentUser ? (
-            <img
-              src={currentUser.profilePicture}
-              alt="profile"
-              className="h-7 w-7 rounded-full object-cover"
-            />
-          ) : (
-            signin
-          )}
+          {signinOrProfile}
         </ul>
       </div>
     </div>
