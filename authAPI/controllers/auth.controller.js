@@ -84,8 +84,10 @@ export const googleSignUp = async (req, res, next) => {
     if (!user) {
       const generatedPassword = Math.random().toString(36).slice(-8);
       const hashedPassword = await bcryptjs.hashSync(generatedPassword, 10);
+      const randNUmber = Math.floor(Math.random() * 1000);
       const newUser = new User({
-        username: name.split(" ").join("").toLowerCase(),
+        username:
+          name.split(" ").join("").toLowerCase() + randNUmber.toString(),
         password: hashedPassword,
         email: email,
         profilePicture: photo,
