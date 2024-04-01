@@ -2,6 +2,25 @@ import User from "../models/user.js";
 import bcryptjs from "bcryptjs";
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
+import LoginAccount from "../models/login.js";
+import { v4 as uuid } from "uuid";
+
+const dateHandler = (date) => {
+  return (
+    ("00" + (date.getMonth() + 1)).slice(-2) +
+    "/" +
+    ("00" + date.getDate()).slice(-2) +
+    "/" +
+    date.getFullYear() +
+    " " +
+    ("00" + date.getHours()).slice(-2) +
+    ":" +
+    ("00" + date.getMinutes()).slice(-2) +
+    ":" +
+    ("00" + date.getSeconds()).slice(-2) +
+    " IST"
+  );
+};
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
@@ -22,22 +41,42 @@ export const signup = async (req, res, next) => {
 export const signIn = async (req, res, next) => {
   const { email, password } = req.body;
   try {
+    // Check validity of user
     const validUser = await User.findOne({ email });
     if (!validUser)
       return next(errorHandler(400, "Email not found!! New to this site?"));
+
+    // Check validity of password
     const validPassword = await bcryptjs.compareSync(
       password,
       validUser.password
     );
     if (!validPassword) return next(errorHandler(401, "Invalid Password"));
+
+    // Preparing login history of user
+    const loginHistoryId = uuid();
+    const loginDetails = new LoginAccount({
+      loginHistoryId: loginHistoryId,
+      userid: validUser._id.toString(),
+      loginTime: dateHandler(new Date()),
+    });
+    await loginDetails.save();
+
+    // Preparing user details without password.
+    const {
+      password: hashedPassword,
+      createdAt,
+      updatedAt,
+      ...rest
+    } = validUser._doc;
     // Creating JWT access token for valid user
     const accessToken = jwt.sign(
-      { id: validUser._id, username: validUser.username },
+      { id: validUser._id, loginHistoryId: loginHistoryId },
       process.env.JWT_SECRET
     );
-    // Preparing user details without password.
-    const { password: hashedPassword, ...rest } = validUser._doc;
-
+    // final response data with Login history ID
+    const finalResponseData = { ...rest, loginHistoryId };
+    // Set 1 hour expiry time for token
     const expiryDate = new Date(Date.now() + 3600000); // 1 hour
     res
       .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
@@ -46,10 +85,10 @@ export const signIn = async (req, res, next) => {
         success: true,
         statusCode: 200,
         message: "User logged in successfully!",
-        data: rest,
+        data: finalResponseData,
       });
   } catch (error) {
-    next(errorHandler(500, "Check DB connection"));
+    next(errorHandler(500, error));
   }
 };
 
@@ -57,8 +96,30 @@ export const googleSignIn = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (user) {
-      const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
-      const { password: hashedPassword, ...rest } = user._doc;
+      // Preparing login history of user
+      const loginHistoryId = await uuid();
+      const loginDetails = new LoginAccount({
+        loginHistoryId: loginHistoryId,
+        userid: user._id.toString(),
+        loginTime: dateHandler(new Date()),
+      });
+      await loginDetails.save();
+
+      // Preparing user details without password.
+      const {
+        password: hashedPassword,
+        createdAt,
+        updatedAt,
+        ...rest
+      } = user._doc;
+      // Creating JWT access token for valid user
+      const accessToken = jwt.sign(
+        { id: user._id, loginHistoryId: loginHistoryId },
+        process.env.JWT_SECRET
+      );
+      // final response data with Login history ID
+      const finalResponseData = { ...rest, loginHistoryId };
+      // Set 1 hour expiry time for token
       const expiryDate = new Date(Date.now() + 3600000); // 1 hour
       res
         .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
@@ -67,7 +128,7 @@ export const googleSignIn = async (req, res, next) => {
           success: true,
           statusCode: 200,
           message: "User logged in successfully!",
-          data: rest,
+          data: finalResponseData,
         });
     } else {
       next(errorHandler(400, "User not found"));
@@ -103,5 +164,28 @@ export const googleSignUp = async (req, res, next) => {
     }
   } catch (error) {
     next(errorHandler(500, "Check DB connection"));
+  }
+};
+
+export const logout = async (req, res, next) => {
+  const { userid, loginHistoryId } = req.body;
+  try {
+    const userLoginAccount = await LoginAccount.findOne({
+      userid,
+      loginHistoryId,
+    });
+    if (userLoginAccount) {
+      userLoginAccount.logoutTime = dateHandler(new Date());
+      await userLoginAccount.save();
+      res.clearCookie("token").status(200).json({
+        success: true,
+        statusCode: 200,
+        message: "User logged out successfully!",
+      });
+    } else {
+      next(errorHandler(400, "User not logged in"));
+    }
+  } catch (error) {
+    next(errorHandler(500, error.message));
   }
 };
