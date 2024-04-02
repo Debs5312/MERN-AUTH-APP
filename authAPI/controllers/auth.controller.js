@@ -22,6 +22,17 @@ const dateHandler = (date) => {
   );
 };
 
+const prepareLoginHistoryAccount = async (validUser) => {
+  const loginHistoryId = uuid();
+  const loginDetails = new LoginAccount({
+    loginHistoryId: loginHistoryId,
+    userid: validUser._id.toString(),
+    loginTime: dateHandler(new Date()),
+  });
+  await loginDetails.save();
+  return loginHistoryId;
+};
+
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
   const hashedPassword = await bcryptjs.hashSync(password, 10);
@@ -45,7 +56,6 @@ export const signIn = async (req, res, next) => {
     const validUser = await User.findOne({ email });
     if (!validUser)
       return next(errorHandler(400, "Email not found!! New to this site?"));
-
     // Check validity of password
     const validPassword = await bcryptjs.compareSync(
       password,
@@ -53,40 +63,100 @@ export const signIn = async (req, res, next) => {
     );
     if (!validPassword) return next(errorHandler(401, "Invalid Password"));
 
-    // Preparing login history of user
-    const loginHistoryId = uuid();
-    const loginDetails = new LoginAccount({
-      loginHistoryId: loginHistoryId,
-      userid: validUser._id.toString(),
-      loginTime: dateHandler(new Date()),
-    });
-    await loginDetails.save();
-
-    // Preparing user details without password.
-    const {
-      password: hashedPassword,
-      createdAt,
-      updatedAt,
-      ...rest
-    } = validUser._doc;
-    // Creating JWT access token for valid user
-    const accessToken = jwt.sign(
-      { id: validUser._id, loginHistoryId: loginHistoryId },
-      process.env.JWT_SECRET
-    );
-    // final response data with Login history ID
-    const finalResponseData = { ...rest, loginHistoryId };
-    // Set 1 hour expiry time for token
-    const expiryDate = new Date(Date.now() + 3600000); // 1 hour
-    res
-      .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
-      .status(200)
-      .json({
-        success: true,
-        statusCode: 200,
-        message: "User logged in successfully!",
-        data: finalResponseData,
+    // if user is logged in previously  -->  end previous session before starting a new one
+    if (validUser.active) {
+      // finding last login history for user
+      const activeLoginHistory = await LoginAccount.findOne({
+        userid: validUser._id.toString(),
+        logoutTime: "",
       });
+      // Update logout timing for last login session on MongoDB
+
+      // filter to find the item
+      const filter = { _id: activeLoginHistory._id };
+      // Set the field to be updated
+      const updateDocument = {
+        $set: {
+          logoutTime: dateHandler(new Date()),
+        },
+      };
+      // Initiate update operation
+      await LoginAccount.updateOne(filter, updateDocument);
+
+      // Preparing user details without password.
+      const {
+        password: hashedPassword,
+        createdAt,
+        updatedAt,
+        ...rest
+      } = validUser._doc;
+
+      // Initialte a new login session
+      const loginHistoryId = await prepareLoginHistoryAccount(validUser);
+      // Creating JWT access token for valid user
+      const accessToken = jwt.sign(
+        { id: validUser._id, loginHistoryId: loginHistoryId },
+        process.env.JWT_SECRET
+      );
+      // final response data with Login history ID
+      const finalResponseData = { ...rest, loginHistoryId };
+      // Set 1 hour expiry time for token
+      const expiryDate = new Date(Date.now() + 3600000); // 1 hour
+      res
+        .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
+        .status(200)
+        .json({
+          success: true,
+          statusCode: 200,
+          message: "User logged in successfully!",
+          data: finalResponseData,
+        });
+    } else {
+      // Preparing new login history of user
+      const loginHistoryId = await prepareLoginHistoryAccount(validUser);
+
+      // active flag = true upon successful sign-in
+      const newUser = { ...validUser._doc, active: true };
+
+      // Update operation on MongoDB
+
+      // filter to find the item
+      const filter = { _id: validUser._id };
+      // Set the field to be updated
+      const updateDocument = {
+        $set: {
+          active: true,
+        },
+      };
+      // Initiate update operation
+      await User.updateOne(filter, updateDocument);
+
+      // Preparing user details without password.
+      const {
+        password: hashedPassword,
+        createdAt,
+        updatedAt,
+        ...rest
+      } = newUser;
+      // Creating JWT access token for valid user
+      const accessToken = jwt.sign(
+        { id: validUser._id, loginHistoryId: loginHistoryId },
+        process.env.JWT_SECRET
+      );
+      // final response data with Login history ID
+      const finalResponseData = { ...rest, loginHistoryId };
+      // Set 1 hour expiry time for token
+      const expiryDate = new Date(Date.now() + 3600000); // 1 hour
+      res
+        .cookie("token", accessToken, { httpOnly: true, expires: expiryDate })
+        .status(200)
+        .json({
+          success: true,
+          statusCode: 200,
+          message: "User logged in successfully!",
+          data: finalResponseData,
+        });
+    }
   } catch (error) {
     next(errorHandler(500, error));
   }
@@ -105,13 +175,29 @@ export const googleSignIn = async (req, res, next) => {
       });
       await loginDetails.save();
 
+      // active flag = true upon successful sign-in
+      const newUser = { ...user._doc, active: true };
+
+      // Update operation on MongoDB
+
+      // filter to find the item
+      const filter = { _id: user._id };
+      // Set the field to be updated
+      const updateDocument = {
+        $set: {
+          active: true,
+        },
+      };
+      // Initiate update operation
+      await User.updateOne(filter, updateDocument);
+
       // Preparing user details without password.
       const {
         password: hashedPassword,
         createdAt,
         updatedAt,
         ...rest
-      } = user._doc;
+      } = newUser;
       // Creating JWT access token for valid user
       const accessToken = jwt.sign(
         { id: user._id, loginHistoryId: loginHistoryId },

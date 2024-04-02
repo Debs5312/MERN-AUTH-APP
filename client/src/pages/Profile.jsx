@@ -1,16 +1,48 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutStart, logoutSuccess } from "../reduxStore/auth/authSlice.js";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+import {
+  getDownloadURL,
+  getStorage,
+  ref,
+  uploadBytesResumable,
+} from "firebase/storage";
+import { app } from "../utils/FirebaseGoogle.js";
 
 const Profile = () => {
+  const fileRef = useRef(null);
   const { currentUser, loading } = useSelector((state) => state.auth);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [matchingError, setMatchingError] = useState(false);
+  const [image, setImage] = useState(undefined);
+  const [imageUploadProgress, setImageUploadProgress] = useState();
+  const [imageUploadError, setImageUploadError] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (image) handleFileUpload(image);
+  }, [image]);
+
+  const handleFileUpload = async (image) => {
+    const storage = getStorage(app);
+    const imageFileName = new Date().getTime() + image.name;
+    const storageRef = ref(storage, imageFileName);
+    const uploadTask = uploadBytesResumable(storageRef, image);
+    uploadTask.on("state-changed", (snapshot) => {
+      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      setImageUploadProgress(Math.round(progress));
+    });
+    (error) => {
+      setImageUploadError(true);
+    };
+    () => {
+      getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {});
+    };
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -32,16 +64,19 @@ const Profile = () => {
   const handleLogout = async () => {
     dispatch(logoutStart());
     try {
-      // const res = await fetch("/api/auth/logout", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({currentUser.}),
-      // });
-      // const jsonResponse = await res.json();
-      console.log(Cookies.get("token"));
-      // onRemoveCookie();
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userid: currentUser._id,
+          loginHistoryId: currentUser.loginHistoryId,
+        }),
+      });
+      const jsonResponse = await res.json();
+      console.log(jsonResponse);
+      onRemoveCookie();
     } catch (error) {
       console.log(error);
     }
@@ -59,10 +94,18 @@ const Profile = () => {
     <div className="p-3 max-w-lg mx-auto">
       <h1 className="text-3xl font-semibold text-center my-7">Welcome!</h1>
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+        <input
+          type="file"
+          ref={fileRef}
+          hidden
+          accept="image/*"
+          onChange={(e) => setImage(e.target.files[0])}
+        />
         <img
           src={currentUser.profilePicture}
           alt="profile"
           className="h-24 w-24 rounded-full object-cover self-center cursor-pointer"
+          onClick={() => fileRef.current.click()}
         />
         <input
           type="text"

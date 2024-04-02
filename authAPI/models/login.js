@@ -16,6 +16,7 @@ const loginSchema = mongoose.Schema(
     },
     logoutTime: {
       type: String,
+      default: "",
     },
   },
   { timestamps: true }
