@@ -57,7 +57,6 @@ const Profile = () => {
 
   const onRemoveCookie = () => {
     dispatch(logoutSuccess());
-    console.log("Cookie removed!!");
     navigate("/sign-in");
   };
 
@@ -75,7 +74,6 @@ const Profile = () => {
         }),
       });
       const jsonResponse = await res.json();
-      console.log(jsonResponse);
       onRemoveCookie();
     } catch (error) {
       console.log(error);
