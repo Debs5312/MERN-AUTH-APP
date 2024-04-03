@@ -66,15 +66,8 @@ const updateUserActiveStatus = async (userid, status) => {
   }
 };
 
-const updateLogoutforLastLoginSession = async (validUser) => {
+const updateLogoutforLastLoginSession = async (activeLoginHistory) => {
   try {
-    // finding last login history for user
-    const activeLoginHistory = await LoginAccount.findOne({
-      userid: validUser._id.toString(),
-      logoutTime: "",
-    });
-    // Update logout timing for last login session on MongoDB
-
     // filter to find the item
     const filter = { _id: activeLoginHistory._id };
     // Set the field to be updated
@@ -128,9 +121,15 @@ export const signIn = async (req, res, next) => {
 
     // if user is logged in previously  -->  end previous session before starting a new one
     if (validUser.active) {
-      await updateLogoutforLastLoginSession(validUser);
+      // finding last login history for user
+      const activeLoginHistory = await LoginAccount.findOne({
+        userid: validUser._id.toString(),
+        logoutTime: "",
+      });
+      // Update logout timing for last login session on MongoDB
+      await updateLogoutforLastLoginSession(activeLoginHistory);
 
-      // Preparing user details without password.
+      // Preparing user details without password, created and Updated time.
       const {
         password: hashedPassword,
         createdAt,
@@ -166,7 +165,7 @@ export const signIn = async (req, res, next) => {
 
       await updateUserActiveStatus(validUser._id, true);
 
-      // Preparing user details without password.
+      // Preparing user details without password created and updated time.
       const {
         password: hashedPassword,
         createdAt,
@@ -200,7 +199,13 @@ export const googleSignIn = async (req, res, next) => {
     if (validUser) {
       // if user is logged in previously  -->  end previous session before starting a new one
       if (validUser.active) {
-        await updateLogoutforLastLoginSession(validUser);
+        // finding last login history for user
+        const activeLoginHistory = await LoginAccount.findOne({
+          userid: validUser._id.toString(),
+          logoutTime: "",
+        });
+        // Update logout timing for last login session on MongoDB
+        await updateLogoutforLastLoginSession(activeLoginHistory);
 
         // Preparing user details without password.
         const {
@@ -309,17 +314,7 @@ export const logout = async (req, res, next) => {
     });
     if (userLoginAccount) {
       // Update logout timing for last login session on MongoDB
-
-      // filter to find the item
-      const filter = { _id: userLoginAccount._id };
-      // Set the field to be updated
-      const updateDocument = {
-        $set: {
-          logoutTime: dateHandler(new Date()),
-        },
-      };
-      // Initiate update operation
-      await LoginAccount.updateOne(filter, updateDocument);
+      await updateLogoutforLastLoginSession(userLoginAccount);
 
       await updateUserActiveStatus(userid, false);
 
