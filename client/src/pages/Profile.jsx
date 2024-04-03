@@ -20,6 +20,7 @@ const Profile = () => {
   const [image, setImage] = useState(undefined);
   const [imageUploadProgress, setImageUploadProgress] = useState();
   const [imageUploadError, setImageUploadError] = useState(false);
+  const [formData, setFormData] = useState({});
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -32,16 +33,22 @@ const Profile = () => {
     const imageFileName = new Date().getTime() + image.name;
     const storageRef = ref(storage, imageFileName);
     const uploadTask = uploadBytesResumable(storageRef, image);
-    uploadTask.on("state-changed", (snapshot) => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      setImageUploadProgress(Math.round(progress));
-    });
-    (error) => {
-      setImageUploadError(true);
-    };
-    () => {
-      getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {});
-    };
+    uploadTask.on(
+      "state-changed",
+      (snapshot) => {
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setImageUploadProgress(Math.round(progress));
+      },
+      (error) => {
+        setImageUploadError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          setFormData({ ...formData, profilePicture: downloadURL });
+        });
+      }
+    );
   };
 
   const handleSubmit = (e) => {
@@ -105,6 +112,17 @@ const Profile = () => {
           className="h-24 w-24 rounded-full object-cover self-center cursor-pointer"
           onClick={() => fileRef.current.click()}
         />
+        <p className="text-sm self-center">
+          {imageUploadError ? (
+            <span className="text-red-700">Error uploading image....</span>
+          ) : imageUploadProgress > 0 && imageUploadProgress < 100 ? (
+            <span className="text-green-700">{`Uploading... ${imageUploadProgress} %`}</span>
+          ) : imageUploadProgress === 100 ? (
+            <span className="text-blue-700">Uploaded successfully..</span>
+          ) : (
+            ""
+          )}
+        </p>
         <input
           type="text"
           id="username"
