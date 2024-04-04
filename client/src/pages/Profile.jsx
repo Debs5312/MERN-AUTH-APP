@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { logoutStart, logoutSuccess } from "../reduxStore/auth/authSlice.js";
+import {
+  logoutStart,
+  logoutSuccess,
+  LogoutFaliure,
+  updateFaliure,
+  updateStart,
+  updateSuccess,
+} from "../reduxStore/auth/authSlice.js";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
 import {
   getDownloadURL,
   getStorage,
@@ -13,20 +19,23 @@ import { app } from "../utils/FirebaseGoogle.js";
 
 const Profile = () => {
   const fileRef = useRef(null);
-  const { currentUser, loading } = useSelector((state) => state.auth);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const { currentUser, loading, error } = useSelector((state) => state.auth);
   const [matchingError, setMatchingError] = useState(false);
   const [image, setImage] = useState(undefined);
   const [imageUploadProgress, setImageUploadProgress] = useState();
   const [imageUploadError, setImageUploadError] = useState(false);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({ password: "", confPassword: "" });
+  const [message, setMessage] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (image) handleFileUpload(image);
   }, [image]);
+
+  const handleSetMessage = (message) => {
+    setMessage(message);
+  };
 
   const handleFileUpload = async (image) => {
     const storage = getStorage(app);
@@ -51,11 +60,41 @@ const Profile = () => {
     );
   };
 
-  const handleSubmit = (e) => {
+  const addPasswdtoFormData = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+
+  const resetData = () => {
+    setFormData({ ...formData, password: "", confPassword: "" });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setMatchingError(false);
-    if (newPassword === confirmPassword) {
-      console.log("Password reset!!");
+    if (formData.password === formData.confPassword) {
+      dispatch(updateStart());
+      try {
+        const { confPassword, ...finalData } = formData;
+        const res = await fetch(`/api/user/update/${currentUser._id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(finalData),
+        });
+        const jsonResponse = await res.json();
+        if (!jsonResponse.success) {
+          dispatch(updateFaliure());
+          handleSetMessage(jsonResponse.message);
+        } else {
+          dispatch(updateSuccess(jsonResponse.data));
+          handleSetMessage(jsonResponse.message);
+          resetData();
+        }
+      } catch (error) {
+        dispatch(updateFaliure());
+        console.log(error);
+      }
     } else {
       setMatchingError(true);
       return;
@@ -81,18 +120,22 @@ const Profile = () => {
         }),
       });
       const jsonResponse = await res.json();
-      onRemoveCookie();
+
+      if (!jsonResponse.success) {
+        dispatch(LogoutFaliure());
+        handleSetMessage(jsonResponse.message);
+        return;
+      } else {
+        onRemoveCookie();
+      }
     } catch (error) {
+      dispatch(LogoutFaliure());
       console.log(error);
     }
   };
 
-  const handlePasswordChange = (e) => {
-    setNewPassword(e.target.value);
-  };
-
-  const handleConfirmedPassword = (e) => {
-    setConfirmPassword(e.target.value);
+  const displayErrorMessage = (message, cssClass) => {
+    return <p className={cssClass}>{message}</p>;
   };
 
   return (
@@ -107,7 +150,7 @@ const Profile = () => {
           onChange={(e) => setImage(e.target.files[0])}
         />
         <img
-          src={currentUser.profilePicture}
+          src={formData.profilePicture || currentUser.profilePicture}
           alt="profile"
           className="h-24 w-24 rounded-full object-cover self-center cursor-pointer"
           onClick={() => fileRef.current.click()}
@@ -142,16 +185,18 @@ const Profile = () => {
         <input
           type="password"
           id="password"
+          value={formData.password}
           placeholder="New Password"
           className="bg-slate-100 rounded-lg p-3"
-          onChange={handlePasswordChange}
+          onChange={addPasswdtoFormData}
         />
         <input
           type="text"
           id="confPassword"
+          value={formData.confPassword}
           placeholder="Confirm Password"
           className="bg-slate-100 rounded-lg p-3"
-          onChange={handleConfirmedPassword}
+          onChange={addPasswdtoFormData}
         />
         <button
           type="submit"
@@ -176,6 +221,9 @@ const Profile = () => {
       ) : (
         ""
       )}
+      {error
+        ? displayErrorMessage(message, "text-red-700 mt-5 p-1")
+        : displayErrorMessage(message, "text-green-700 mt-5 p-1")}
     </div>
   );
 };

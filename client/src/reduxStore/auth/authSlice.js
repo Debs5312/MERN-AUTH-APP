@@ -32,6 +32,23 @@ export const authSlice = createSlice({
       state.error = false;
       state.currentUser = null;
     },
+    LogoutFaliure: (state) => {
+      state.loading = false;
+      state.error = true;
+    },
+    updateStart: (state) => {
+      state.loading = true;
+      state.error = false;
+    },
+    updateSuccess: (state, action) => {
+      state.loading = false;
+      state.error = false;
+      state.currentUser = action.payload;
+    },
+    updateFaliure: (state) => {
+      state.loading = false;
+      state.error = true;
+    },
   },
 });
 
@@ -42,6 +59,10 @@ export const {
   signInFaliure,
   logoutStart,
   logoutSuccess,
+  LogoutFaliure,
+  updateStart,
+  updateSuccess,
+  updateFaliure,
 } = authSlice.actions;
 
 export default authSlice.reducer;
