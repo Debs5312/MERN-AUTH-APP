@@ -49,6 +49,11 @@ export const authSlice = createSlice({
       state.loading = false;
       state.error = true;
     },
+    unauthorizedHandler: (state) => {
+      state.loading = false;
+      state.error = false;
+      state.currentUser = null;
+    },
   },
 });
 
@@ -63,6 +68,7 @@ export const {
   updateStart,
   updateSuccess,
   updateFaliure,
+  unauthorizedHandler,
 } = authSlice.actions;
 
 export default authSlice.reducer;

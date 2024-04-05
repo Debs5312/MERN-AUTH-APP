@@ -7,6 +7,7 @@ import {
   updateFaliure,
   updateStart,
   updateSuccess,
+  unauthorizedHandler,
 } from "../reduxStore/auth/authSlice.js";
 import { useNavigate } from "react-router-dom";
 import {
@@ -83,6 +84,11 @@ const Profile = () => {
           body: JSON.stringify(finalData),
         });
         const jsonResponse = await res.json();
+        if (jsonResponse.statusCode === 401) {
+          dispatch(unauthorizedHandler());
+          navigate("/");
+          return;
+        }
         if (!jsonResponse.success) {
           dispatch(updateFaliure());
           handleSetMessage(jsonResponse.message);
