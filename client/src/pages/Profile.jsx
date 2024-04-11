@@ -25,7 +25,11 @@ const Profile = () => {
   const [image, setImage] = useState(undefined);
   const [imageUploadProgress, setImageUploadProgress] = useState();
   const [imageUploadError, setImageUploadError] = useState(false);
-  const [formData, setFormData] = useState({ password: "", confPassword: "" });
+  const [formData, setFormData] = useState({
+    password: "",
+    confPassword: "",
+    profilePicture: "",
+  });
   const [message, setMessage] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -66,22 +70,60 @@ const Profile = () => {
   };
 
   const resetData = () => {
-    setFormData({ ...formData, password: "", confPassword: "" });
+    setFormData({
+      ...formData,
+      password: "",
+      confPassword: "",
+      profilePicture: "",
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMatchingError(false);
-    if (formData.password === formData.confPassword) {
-      dispatch(updateStart());
+    dispatch(updateStart());
+    if (formData.password && formData.confPassword) {
+      if (formData.password === formData.confPassword) {
+        try {
+          const { confPassword, ...finalData } = formData;
+          const res = await fetch(`/api/user/update/${currentUser._id}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(finalData),
+          });
+          const jsonResponse = await res.json();
+          if (jsonResponse.statusCode === 401) {
+            dispatch(unauthorizedHandler());
+            navigate("/");
+            return;
+          }
+          if (!jsonResponse.success) {
+            dispatch(updateFaliure());
+            handleSetMessage(jsonResponse.message);
+          } else {
+            dispatch(updateSuccess(jsonResponse.data));
+            handleSetMessage(jsonResponse.message);
+            resetData();
+          }
+        } catch (error) {
+          dispatch(updateFaliure());
+          console.log(error);
+        }
+      } else {
+        setMatchingError(true);
+        dispatch(updateFaliure());
+        return;
+      }
+    } else if (formData.profilePicture) {
       try {
-        const { confPassword, ...finalData } = formData;
         const res = await fetch(`/api/user/update/${currentUser._id}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(finalData),
+          body: JSON.stringify(formData),
         });
         const jsonResponse = await res.json();
         if (jsonResponse.statusCode === 401) {
@@ -102,7 +144,7 @@ const Profile = () => {
         console.log(error);
       }
     } else {
-      setMatchingError(true);
+      dispatch(updateFaliure());
       return;
     }
   };

@@ -46,7 +46,7 @@ export const updateUserData = async (req, res, next) => {
     });
   }
   try {
-    if (req.body.password) {
+    if (req.body.password !== "" && req.body.profilePicture !== "") {
       const hashedUpdatedPasswd = await bcryptjs.hashSync(
         req.body.password,
         10
@@ -56,6 +56,52 @@ export const updateUserData = async (req, res, next) => {
         {
           $set: {
             password: hashedUpdatedPasswd,
+            profilePicture: req.body.profilePicture,
+          },
+        },
+        { new: true }
+      );
+      const { password, ...rest } = updatedUser._doc;
+      const finalResponseData = {
+        ...rest,
+        loginHistoryId: req.decodedData.loginHistoryId,
+      };
+      res.status(200).json({
+        success: true,
+        statusCode: 200,
+        message: "Updated Changes!!",
+        data: finalResponseData,
+      });
+    } else if (req.body.password !== "" && req.body.profilePicture === "") {
+      const hashedUpdatedPasswd = await bcryptjs.hashSync(
+        req.body.password,
+        10
+      );
+      const updatedUser = await User.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
+            password: hashedUpdatedPasswd,
+          },
+        },
+        { new: true }
+      );
+      const { password, ...rest } = updatedUser._doc;
+      const finalResponseData = {
+        ...rest,
+        loginHistoryId: req.decodedData.loginHistoryId,
+      };
+      res.status(200).json({
+        success: true,
+        statusCode: 200,
+        message: "Updated Changes!!",
+        data: finalResponseData,
+      });
+    } else if (req.body.password === "" && req.body.profilePicture !== "") {
+      const updatedUser = await User.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
             profilePicture: req.body.profilePicture,
           },
         },
