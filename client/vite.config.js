@@ -7,8 +7,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        // target: "http://auth-authapi:3000",
-        target: "http://localhost:3000",
+        target: "http://auth-authapi:3000",
+        // target: "http://localhost:3000",
         changeOrigin: true,
       },
     },
