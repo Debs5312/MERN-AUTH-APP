@@ -1,20 +1,20 @@
 version: "3.8"
 services:
   authapi:
-    build:
-      context: ./authapi
-      dockerfile: Dockerfile
+    build: ./authAPI
     image: debs21/mern-auth-api:1.0.0.RELEASE
     container_name: auth-authapi
     ports:
       - "3000:3000"
+    env_file:
+      - ./authAPI/.env
   authui:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
+    build: ./client
     image: debs21/mern-auth-ui:1.0.0.RELEASE
     container_name: auth-authui
     ports:
       - "5173:5173"
+    env_file:
+      - ./client/.env
     stdin_open: true
     tty: true
