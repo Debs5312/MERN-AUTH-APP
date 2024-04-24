@@ -1,7 +1,6 @@
 version: "3.8"
 services:
   authapi:
-    build: ./authAPI
     image: debs21/node-auth-api:latest
     container_name: auth-authapi
     ports:
@@ -9,7 +8,6 @@ services:
     env_file:
       - ./authAPI/.env
   authui:
-    build: ./client
     image: debs21/node-auth-ui:latest
     container_name: auth-authui
     ports:
